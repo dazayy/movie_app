@@ -3,7 +3,14 @@ const API_URL =
     "https://kinopoiskapiunofficial.tech/api/v2.2/films?order=RATING&type=FILM&ratingFrom=0&ratingTo=10&yearFrom=1000&yearTo=3000&page=1";
 const API_URL_SEARCH =
     "https://kinopoiskapiunofficial.tech/api/v2.1/films/search-by-keyword?keyword=";
+const API_URL_MOVIE_BY_ID =
+    "https://kinopoiskapiunofficial.tech/api/v2.2/films/";
+
 getMovies(API_URL);
+
+const KEYS = {
+    ESCAPE: 27,
+};
 
 async function getMovies(url) {
     const response = await fetch(url, {
@@ -15,7 +22,7 @@ async function getMovies(url) {
 
     const data = await response.json();
 
-    // console.log(data);
+    console.log(data);
 
     if (data.hasOwnProperty("items")) {
         showMovies(data);
@@ -72,6 +79,7 @@ function showMovies(data) {
                     </div>
                 </div>
         `;
+        movieCard.addEventListener("click", () => openModal(movie.kinopoiskId));
         moviesElement.appendChild(movieCard);
     });
 }
@@ -105,6 +113,7 @@ function showSearchedMovies(data) {
                             </div>
                         </div>
                 `;
+            movieCard.addEventListener("click", () => openModal(movie.filmId));
             moviesElement.appendChild(movieCard);
         });
 }
@@ -118,4 +127,100 @@ form.addEventListener("submit", (event) => {
     const apiSearchUrl = `${API_URL_SEARCH + search.value}`;
     getMovies(apiSearchUrl);
     search.value = "";
+});
+
+//modal
+
+const modalElement = document.querySelector(".modal");
+
+async function openModal(idMovie) {
+    const dataIdMovie = await fetch(API_URL_MOVIE_BY_ID + `${idMovie}`, {
+        headers: {
+            "Content-Type": "application/json",
+            "X-API-KEY": API_KEY,
+        },
+    }).catch((err) => new Error(err));
+
+    const data = await dataIdMovie.json();
+    console.log(data);
+
+    modalElement.classList.add("modal--show");
+    document.body.classList.add("stop-scrolling");
+    modalElement.innerHTML = `
+        <div class="modal__card">
+            <img class="modal__movie-img" src="${data.posterUrl}" alt="">
+            <h2>
+                <span class="modal__movie-title">${data.nameRu}</span>
+                <span class="modal__movie-release-year">(${data.year})</span>
+            </h2>
+            <ul class="modal__movie-info">
+                <div class="loader"></div>
+                ${
+                    data.genres.length
+                        ? `<li class="modal__movie-genre">${getMovieGenre(
+                              data.genres
+                          )}</li>`
+                        : ""
+                }
+                ${
+                    data.filmLength
+                        ? `<li class="modal__movie-overview">${getMovieTime(
+                              data.filmLength
+                          )}</li>`
+                        : ""
+                }
+                <li>Сайт: <a href="${data.webUrl}" class="modal__movie-site">${
+        data.webUrl
+    }</a></li>
+               ${
+                   data.description
+                       ? `<li class="modal__movie-overview">
+                           ${data.description}
+                       </li>`
+                       : ""
+               }
+            </ul>
+            <button type="button" class="modal__button-close">Закрыть</button>
+        </div>
+    `;
+
+    document
+        .querySelector(".modal__button-close")
+        .addEventListener("click", closeModal);
+}
+
+function closeModal() {
+    modalElement.classList.remove("modal--show");
+    document.body.classList.remove("stop-scrolling");
+}
+
+function getMovieGenre(genres) {
+    return `${genres.length === 1 ? "Жанр:" : "Жанры:"} ${genres.map(
+        (movie) => ` ${movie.genre}`
+    )}`;
+}
+
+function getMovieTime(minutes) {
+    const times = Number((minutes / 60).toFixed(2));
+    if (times < 1) {
+        return minutes + " мин";
+    }
+    if (times === 1) {
+        return `${parseInt(times)}ч`;
+    }
+    return `${parseInt(times)}ч ${minutes - parseInt(times) * 60}м`;
+}
+
+window.addEventListener("click", (event) => {
+    // console.log(event.target);
+    if (event.target === modalElement) {
+        closeModal();
+    }
+});
+
+window.addEventListener("keydown", (e) => {
+    // console.log(e.keyCode);
+    if (e.keyCode === KEYS.ESCAPE) {
+        closeModal();
+    }
 });
